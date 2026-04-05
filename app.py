@@ -12,6 +12,8 @@ st.set_page_config(page_title="AI Threat Assessment", layout="wide")
 
 st.markdown("""
 <style>
+    @import url('https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Karla:wght@400;500;600;700&display=swap');
+
     /* Premium Dark Blue Textured Background */
     .stApp { 
         background: #0b1018;
@@ -28,7 +30,7 @@ st.markdown("""
     [data-testid="stSidebar"] { display: none !important; }
     
     /* Typography */
-    * { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif !important; }
+    * { font-family: "Karla", Roboto, sans-serif !important; }
     h1 { color: #FFFFFF !important; font-weight: 700 !important; font-size: 2.2rem !important; margin-bottom: 0.2rem !important; }
     h3 { color: #94A3B8 !important; font-weight: 400 !important; font-size: 1.1rem !important; margin-bottom: 2rem !important; }
     p { font-size: 1.05rem; line-height: 1.6; color: #CBD5E1; }
