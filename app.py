@@ -189,7 +189,7 @@ eps = st.slider("Intensity of Adversarial Evasion Tactics", 0.0, 1.0, 0.0, 0.05,
 if eps == 0.0:
     example_text = "Level 0: No manipulation. The AI is processing unaltered, standard data."
 elif eps <= 0.35:
-    example_text = f"Level {eps:.2f}: Minor digital manipulation. Real-world equivalent is changing a few pixels on a scanned passport photo or subtly altering the background static in an audio recording."
+    example_text = f"Level {eps:.2f}: Minor digital manipulation. Real-world equivalent is changing a few pixels in a photo or subtly altering the background static in an audio recording."
 elif eps <= 0.7:
     example_text = f"Level {eps:.2f}: Moderate physical manipulation. Real-world equivalent is placing a small piece of dark tape on a stop sign to confuse a self-driving car."
 else:
