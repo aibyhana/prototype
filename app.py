@@ -14,9 +14,11 @@ st.markdown("""
 <style>
     /* Premium Dark Blue Textured Background */
     .stApp { 
-        background-color: #060B14; 
-        background-image: radial-gradient(rgba(148, 163, 184, 0.05) 1px, transparent 1px);
-        background-size: 24px 24px;
+        background: #0b1018;
+        background-image:
+            radial-gradient(ellipse at 15% 0%, rgba(30,65,110,0.2) 0%, transparent 45%),
+            radial-gradient(ellipse at 90% 100%, rgba(20,55,95,0.15) 0%, transparent 45%),
+            url("data:image/svg+xml,%3Csvg width='60' height='60' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M0 30h60M30 0v60' stroke='rgba(255,255,255,0.02)' stroke-width='1'/%3E%3C/svg%3E");
         color: #E2E8F0; 
     }
     header[data-testid="stHeader"] { background-color: transparent !important; }
