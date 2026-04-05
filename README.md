@@ -2,6 +2,7 @@
 
 Interactive Streamlit app that lets you train a neural network on a toy dataset and watch adversarial attacks break its predictions in real time.
 
+Built for **Stanford SAFE** — helping policymakers build intuition about adversarial brittleness in ML systems.
 
 ## Run locally
 
