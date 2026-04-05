@@ -7,74 +7,99 @@ from sklearn.datasets import make_moons
 from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import StandardScaler
 
-# 1. Dribbble-Inspired SaaS Configuration & CSS
-st.set_page_config(page_title="Model Robustness Explorer", layout="wide")
+# 1. Premium Dribbble-Style SaaS Configuration
+st.set_page_config(page_title="AI Robustness Sandbox", layout="wide", initial_sidebar_state="collapsed")
 
+# Inject Custom CSS, Google Fonts, and modern UI styling
 st.markdown("""
 <style>
-    /* Clean Light SaaS Background */
+    @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap');
+    
+    /* Base App Styling */
     .stApp { 
         background-color: #F8FAFC; 
         color: #0F172A;
     }
     
-    /* Hide default Streamlit clutter */
+    * { font-family: 'Plus Jakarta Sans', sans-serif !important; }
+    
+    /* Hide Streamlit Clutter */
     header[data-testid="stHeader"] { display: none !important; }
-    [data-testid="collapsedControl"] { display: none !important; }
-    [data-testid="stSidebar"] { display: none !important; }
-    .block-container { padding-top: 3rem !important; max-width: 1200px !important; }
+    [data-testid="collapsedControl"] { display: none !important; }[data-testid="stSidebar"] { display: none !important; }
+    .block-container { padding-top: 4rem !important; max-width: 1280px !important; }
     
-    /* Modern Typography */
-    * { font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif !important; }
-    h1 { color: #0F172A !important; font-weight: 800 !important; font-size: 2.5rem !important; letter-spacing: -0.02em !important; margin-bottom: 0.2rem !important; }
-    h3 { color: #64748B !important; font-weight: 400 !important; font-size: 1.2rem !important; margin-bottom: 2rem !important; }
-    p { font-size: 1.05rem; line-height: 1.6; color: #475569; }
+    /* Hero Section */
+    .hero-title {
+        font-weight: 800;
+        font-size: 3.2rem;
+        line-height: 1.1;
+        letter-spacing: -0.03em;
+        color: #0F172A;
+        margin-bottom: 1.5rem;
+    }
+    .hero-title span {
+        background: linear-gradient(135deg, #4F46E5 0%, #EC4899 100%);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+    }
+    .hero-text {
+        font-size: 1.15rem;
+        line-height: 1.6;
+        color: #475569;
+        margin-bottom: 2rem;
+        max-width: 90%;
+    }
+    .hero-image {
+        width: 100%;
+        height: 380px;
+        object-fit: cover;
+        border-radius: 24px;
+        box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.05), 0 8px 10px -6px rgba(0, 0, 0, 0.01);
+    }
     
-    /* Clean Dribbble-style Cards */
-    .info-card {
-        background-color: #FFFFFF;
+    /* Control Panel Card */
+    .control-card {
+        background: #FFFFFF;
         border: 1px solid #E2E8F0;
-        border-radius: 16px;
-        padding: 28px;
-        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.02), 0 2px 4px -1px rgba(0, 0, 0, 0.02);
-        margin-bottom: 32px;
+        border-radius: 20px;
+        padding: 32px;
+        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.02);
+        margin-top: 2rem;
+        margin-bottom: 2rem;
     }
     
-    /* Context Banner */
-    .context-banner {
-        background: linear-gradient(to right, #EEF2FF, #F8FAFC);
-        border-left: 4px solid #4F46E5;
-        border-radius: 0 12px 12px 0;
-        padding: 16px 20px;
-        margin-bottom: 24px;
-        color: #3730A3;
-        font-size: 0.95rem;
-        font-weight: 500;
-    }
-    
-    /* Metric Cards Styling */
+    /* Metrics Override */
     div[data-testid="stMetric"] { 
         background-color: #FFFFFF; 
         border: 1px solid #E2E8F0;
         border-radius: 16px;
-        padding: 20px 24px; 
+        padding: 24px; 
         box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.02);
     }
     div[data-testid="stMetricLabel"] { color: #64748B !important; font-weight: 600 !important; font-size: 0.85rem !important; text-transform: uppercase; letter-spacing: 0.05em; }
-    div[data-testid="stMetricValue"] { color: #0F172A !important; font-weight: 800 !important; font-size: 2.2rem !important; }
-    div[data-testid="stMetricDelta"] svg { stroke-width: 3px !important; }
+    div[data-testid="stMetricValue"] { color: #0F172A !important; font-weight: 800 !important; font-size: 2.5rem !important; letter-spacing: -0.02em; }
     
-    /* Hide Plotly Toolbar */
-    .modebar { display: none !important; }
+    /* Badge */
+    .status-badge {
+        display: inline-block;
+        padding: 6px 12px;
+        border-radius: 20px;
+        font-size: 0.85rem;
+        font-weight: 600;
+        letter-spacing: 0.02em;
+        margin-bottom: 1rem;
+        background-color: #EEF2FF;
+        color: #4F46E5;
+        border: 1px solid #C7D2FE;
+    }
 </style>
 """, unsafe_allow_html=True)
 
-# 2. Mathematical Engine & AI Setup
-# Modern UI Colors
+# 2. ML Engine (Hidden away from the UI logic)
 C_SAFE = "#4F46E5"       # Indigo
 C_THREAT = "#EC4899"     # Rose
-C_SAFE_BG = "#EEF2FF"    # Very Light Indigo
-C_THREAT_BG = "#FDF2F8"  # Very Light Rose
+C_SAFE_BG = "#EEF2FF"
+C_THREAT_BG = "#FDF2F8"
 
 class Net(nn.Module):
     def __init__(self):
@@ -85,8 +110,7 @@ class Net(nn.Module):
 @st.cache_data(show_spinner=False)
 def get_data():
     X, y = make_moons(n_samples=300, noise=0.12, random_state=42)
-    X = StandardScaler().fit_transform(X)
-    return train_test_split(X, y, test_size=0.3, random_state=42)
+    return train_test_split(StandardScaler().fit_transform(X), y, test_size=0.3, random_state=42)
 
 @st.cache_resource(show_spinner=False)
 def train_model(_X, _y):
@@ -102,9 +126,7 @@ def train_model(_X, _y):
 def get_metrics(m, X, y):
     with torch.no_grad():
         preds = m(torch.tensor(X, dtype=torch.float32)).argmax(1).numpy()
-        acc = (preds == y).mean() * 100
-        threats_bypassed = ((preds == 0) & (y == 1)).sum()
-        return acc, threats_bypassed
+        return (preds == y).mean() * 100, ((preds == 0) & (y == 1)).sum()
 
 def generate_attack(m, X, y, eps):
     if eps == 0.0: return X
@@ -119,113 +141,111 @@ def generate_attack(m, X, y, eps):
             Xa = Xt + torch.clamp(Xa + alpha * Xa.grad.sign() - Xt, -eps, eps)
     return Xa.detach().numpy()
 
-def render_plot(X, y, model, title, subtitle, arrows_from=None):
+def render_chart(X, y, model, title, subtitle, arrows_from=None):
     fig = go.Figure()
-    
     xs = np.linspace(X[:,0].min()-0.5, X[:,0].max()+0.5, 120)
     ys = np.linspace(X[:,1].min()-0.5, X[:,1].max()+0.5, 120)
     xx, yy = np.meshgrid(xs, ys)
     with torch.no_grad():
         Z = model(torch.tensor(np.c_[xx.ravel(), yy.ravel()], dtype=torch.float32)).argmax(1).numpy().reshape(xx.shape)
     
-    # Soft background contours
     fig.add_trace(go.Contour(
-        x=xs, y=ys, z=Z, showscale=False, colorscale=[[0, C_SAFE_BG], [1, C_THREAT_BG]],
+        x=xs, y=ys, z=Z, showscale=False, colorscale=[[0, C_SAFE_BG],[1, C_THREAT_BG]],
         contours=dict(showlines=False, coloring="fill"), hoverinfo="skip"))
     
-    # Clean data points with white borders
     colors =[C_SAFE if yi == 0 else C_THREAT for yi in y]
     fig.add_trace(go.Scatter(
         x=X[:,0], y=X[:,1], mode="markers", hoverinfo="skip",
-        marker=dict(color=colors, size=9, line=dict(width=1.5, color="#FFFFFF"), opacity=0.9)))
+        marker=dict(color=colors, size=9, line=dict(width=2, color="#FFFFFF"), opacity=0.9)))
     
-    # Subtle arrows for adversarial shifts
     if arrows_from is not None:
         for i in range(len(X)):
             if np.linalg.norm(X[i] - arrows_from[i]) > 0.01:
                 fig.add_annotation(
                     x=X[i,0], y=X[i,1], ax=arrows_from[i,0], ay=arrows_from[i,1],
-                    showarrow=True, arrowhead=2, arrowsize=1, arrowwidth=1.5, arrowcolor="#64748B", opacity=0.7)
+                    showarrow=True, arrowhead=2, arrowsize=1, arrowwidth=1.5, arrowcolor="#94A3B8", opacity=0.8)
 
     fig.update_layout(
-        title=dict(text=f"<span style='font-size:18px; font-weight:700; color:#0F172A; font-family:Inter'>{title}</span><br><span style='font-size:13px;color:#64748B; font-family:Inter'>{subtitle}</span>", x=0.02, y=0.95),
+        title=dict(text=f"<span style='font-size:20px; font-weight:700; color:#0F172A; font-family:\"Plus Jakarta Sans\"'>{title}</span><br><span style='font-size:14px;color:#64748B; font-weight:500; font-family:\"Plus Jakarta Sans\"'>{subtitle}</span>", x=0.02, y=0.95),
         height=450, showlegend=False, margin=dict(t=10, b=10, l=10, r=10),
-        paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)",
+        paper_bgcolor="#FFFFFF", plot_bgcolor="#FFFFFF",
         xaxis=dict(showgrid=False, zeroline=False, showticklabels=False),
         yaxis=dict(showgrid=False, zeroline=False, showticklabels=False)
     )
     return fig
 
-# 3. UI Layout and Content
+# 3. UI Layout
 
-st.title("Adversarial AI Explorer")
-st.markdown("### Visualizing how subtle data manipulation breaks ML decision boundaries.")
+# Hero Section
+col1, col2 = st.columns([1.1, 1], gap="large")
 
-st.markdown("""
-<div class="info-card">
-    <h4 style="color: #0F172A; margin-top: 0; margin-bottom: 8px;">Why Regulators Care About Robustness</h4>
-    <p style="margin: 0;">
-        Machine learning models don't "see" data the way we do; they simply draw mathematical boundaries between categories. 
-        Adversarial attacks exploit this. By making mathematically calculated, microscopic tweaks to a data point, 
-        an attacker can easily push a malicious profile across the boundary into the safe zone. The AI will then approve it with absolute confidence.
-    </p>
-</div>
-""", unsafe_allow_html=True)
+with col1:
+    st.markdown("<div class='status-badge'>Prototype Demo</div>", unsafe_allow_html=True)
+    st.markdown("""
+        <div class='hero-title'>Why regulators should care about <span>robustness.</span></div>
+        <div class='hero-text'>
+            There is a dangerous gap between what AI systems actually do and what non-technical regulators think they do. 
+            Models don't understand context—they draw invisible mathematical lines. By making microscopic numerical tweaks to a data point, adversaries can seamlessly bypass safety guardrails.
+            <br><br>
+            <strong>Experience it yourself below.</strong> Watch how a perfectly accurate classifier collapses when subjected to minor adversarial pressure.
+        </div>
+    """, unsafe_allow_html=True)
 
-# Process Data Live
+with col2:
+    # High-quality abstract tech image from Unsplash (representing boundaries/data)
+    st.markdown("""
+        <img src="https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?auto=format&fit=crop&w=1200&q=80" class="hero-image" alt="Abstract AI Data">
+    """, unsafe_allow_html=True)
+
+
+# Process Models
 X_train, X_test, y_train, y_test = get_data()
 model = train_model(X_train, y_train)
 
-# Interactive Component
-st.markdown("<p style='font-weight: 600; color: #0F172A; margin-bottom: -10px;'>Adjust Perturbation Strength (Epsilon)</p>", unsafe_allow_html=True)
-eps = st.slider("Intensity of Adversarial Evasion Tactics", 0.0, 1.0, 0.0, 0.05, label_visibility="collapsed")
+# Interactive Control Panel Card
+st.markdown("<div class='control-card'>", unsafe_allow_html=True)
+st.markdown("<h4 style='margin-top:0; color:#0F172A;'>Interactive Threat Simulator</h4>", unsafe_allow_html=True)
 
-# Dynamic Context Updates
-if eps == 0.0:
-    example_text = "Clean Data (Epsilon 0.0). The model is evaluating standard, unaltered data."
-elif eps <= 0.35:
-    example_text = f"Mild Perturbation (Epsilon {eps:.2f}). Real-world equivalent: Changing a few invisible pixels in an image to bypass a content filter."
-elif eps <= 0.7:
-    example_text = f"Moderate Perturbation (Epsilon {eps:.2f}). Real-world equivalent: Placing a small, specific sticker on a stop sign to confuse a self-driving car."
-else:
-    example_text = f"Severe Perturbation (Epsilon {eps:.2f}). Real-world equivalent: Heavy digital noise applied to an X-ray to force an automated misdiagnosis."
+col_slider, col_desc = st.columns([1, 1.5])
+with col_slider:
+    eps = st.slider("Adversarial Perturbation (Epsilon)", 0.0, 1.0, 0.0, 0.05)
+with col_desc:
+    if eps == 0.0:
+        msg = "<b>Clean Data:</b> The model operates exactly as intended, evaluating standard, unaltered data."
+    elif eps <= 0.35:
+        msg = f"<b>Mild Attack (ε={eps:.2f}):</b> Invisible adjustments. Real-world equivalent: Changing a few invisible pixels in an image to bypass a safety filter."
+    elif eps <= 0.7:
+        msg = f"<b>Moderate Attack (ε={eps:.2f}):</b> Real-world equivalent: Placing a small sticker on a stop sign to confuse an autonomous vehicle's vision system."
+    else:
+        msg = f"<b>Severe Attack (ε={eps:.2f}):</b> Real-world equivalent: Heavy digital noise applied to a financial transaction to force automated approval."
+    st.info(msg, icon="💡")
 
-st.markdown(f"""
-<div class="context-banner">
-    <strong>Current Simulation:</strong> {example_text}
-</div>
-""", unsafe_allow_html=True)
+st.markdown("</div>", unsafe_allow_html=True)
 
-# Computations
+# Metrics & Computations
 clean_acc, clean_bypassed = get_metrics(model, X_test, y_test)
 X_adv = generate_attack(model, X_test, y_test, eps)
 adv_acc, adv_bypassed = get_metrics(model, X_adv, y_test)
 
-# Dashboard Metrics
 m1, m2, m3 = st.columns(3)
 m1.metric("Baseline Accuracy", f"{clean_acc:.1f}%")
 m2.metric("Accuracy Under Attack", f"{adv_acc:.1f}%", f"{adv_acc - clean_acc:.1f}%")
-m3.metric("False Negatives (Bypassed)", f"{adv_bypassed}", f"+{adv_bypassed - clean_bypassed} errors", delta_color="inverse")
+m3.metric("Safety Guardrails Bypassed", f"{adv_bypassed}", f"+{adv_bypassed - clean_bypassed} failures", delta_color="inverse")
 
 st.markdown("<br>", unsafe_allow_html=True)
 
-# Visualizations
-c1, c2 = st.columns(2)
+# Charts Section
+c1, c2 = st.columns(2, gap="large")
 
 with c1:
-    st.plotly_chart(
-        render_plot(X_test, y_test, model, "Baseline Model (Clean Data)", "The AI correctly separates blue (safe) and pink (unsafe) data."), 
-        use_container_width=True, config={'displayModeBar': False}
-    )
+    st.markdown("<div style='border: 1px solid #E2E8F0; border-radius: 16px; overflow: hidden; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.02);'>", unsafe_allow_html=True)
+    st.plotly_chart(render_chart(X_test, y_test, model, "Expected Behavior", "Baseline classification on clean data."), use_container_width=True, config={'displayModeBar': False})
+    st.markdown("</div>", unsafe_allow_html=True)
 
 with c2:
+    st.markdown("<div style='border: 1px solid #E2E8F0; border-radius: 16px; overflow: hidden; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.02);'>", unsafe_allow_html=True)
     if eps == 0.0:
-        st.plotly_chart(
-            render_plot(X_adv, y_test, model, "Adversarial Evaluation", "Increase the slider above to apply perturbation."), 
-            use_container_width=True, config={'displayModeBar': False}
-        )
+        st.plotly_chart(render_chart(X_adv, y_test, model, "Adversarial Behavior", "Increase perturbation to view system collapse."), use_container_width=True, config={'displayModeBar': False})
     else:
-        st.plotly_chart(
-            render_plot(X_adv, y_test, model, "Decision Boundary Shift", "Gray arrows show how pink data points are forced into the blue zone."), 
-            use_container_width=True, config={'displayModeBar': False}
-        )
+        st.plotly_chart(render_chart(X_adv, y_test, model, "System Collapse", "Gray vectors trace data forced across the boundary."), use_container_width=True, config={'displayModeBar': False})
+    st.markdown("</div>", unsafe_allow_html=True)
