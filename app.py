@@ -1,259 +1,203 @@
-"""
-Interactive briefing: Assessing AI System Vulnerabilities
-Guided walkthrough for senior policymakers and decision-makers.
-"""
-
 import streamlit as st
 import numpy as np
 import torch
 import torch.nn as nn
 import plotly.graph_objects as go
-from sklearn.datasets import make_moons, make_circles, make_classification
+from sklearn.datasets import make_moons
 from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import StandardScaler
 
-# Configuration & CSS
-st.set_page_config(page_title="AI Vulnerability Briefing", layout="wide")
+# 1. Configuration & Core Styling
+st.set_page_config(page_title="AI Vulnerability Assessment", layout="wide")
 
 st.markdown("""
 <style>
-    /* Force deep dark background: Intelligence Dashboard Aesthetic */
-    .stApp, header[data-testid="stHeader"] { background-color: #09090B; color: #F4F4F5; }
+    /* Obsidian Dark Theme - Intelligence Dashboard Aesthetic */
+    .stApp, header[data-testid="stHeader"] { background-color: #050505; color: #E5E5E5; }
     
-    /* Hide the Streamlit sidebar and its toggle button completely */
+    /* Completely remove sidebar and toggle */
     [data-testid="collapsedControl"] { display: none !important; }
     [data-testid="stSidebar"] { display: none !important; }
     
     /* Typography */
-    * { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif !important; }
-    h1, h2, h3 { color: #FFFFFF !important; font-weight: 600 !important; letter-spacing: -0.02em; }
-    p, span, label, div { color: #D4D4D8; }
+    * { font-family: "SF Pro Display", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif !important; }
+    h1 { color: #FFFFFF !important; font-weight: 700 !important; font-size: 2.2rem !important; margin-bottom: 0.2rem !important; }
+    h3 { color: #A3A3A3 !important; font-weight: 400 !important; font-size: 1.1rem !important; margin-bottom: 2rem !important; }
+    p { font-size: 1.05rem; line-height: 1.6; color: #D4D4D8; }
     
-    /* Prototype Banner */
-    .prototype-banner {
-        background-color: #27272A;
-        color: #A1A1AA;
-        text-align: center;
-        padding: 6px;
-        font-size: 0.75rem;
-        font-weight: 600;
-        letter-spacing: 0.1em;
-        text-transform: uppercase;
-        border-bottom: 1px solid #3F3F46;
-        margin-top: -60px;
-        margin-bottom: 24px;
-        margin-left: -4rem;
-        margin-right: -4rem;
-    }
-
-    /* Metric Cards */
-    div[data-testid="stMetric"] {
-        background-color: #18181B;
-        border: 1px solid #27272A;
-        border-radius: 4px;
-        padding: 16px 24px;
-    }
-    div[data-testid="stMetricValue"] { color: #FFFFFF !important; }
-    
-    /* Executive Summary Box */
-    .exec-summary {
-        background-color: #18181B;
-        border-left: 3px solid #3B82F6;
+    /* BLUF (Bottom Line Up Front) Box */
+    .bluf-box {
+        background-color: #121212;
+        border-left: 4px solid #DC2626;
         padding: 20px 24px;
         margin-bottom: 32px;
-        color: #A1A1AA;
-        line-height: 1.6;
-        border-top: 1px solid #27272A;
-        border-right: 1px solid #27272A;
-        border-bottom: 1px solid #27272A;
+        border-top: 1px solid #262626;
+        border-right: 1px solid #262626;
+        border-bottom: 1px solid #262626;
     }
-    .exec-summary strong { color: #F4F4F5; font-weight: 600; }
+    .bluf-text { color: #F5F5F5; font-weight: 500; font-size: 1.1rem; }
     
-    /* Custom Alert Boxes */
-    .alert-critical { border-left: 3px solid #EF4444; background: rgba(239, 68, 68, 0.1); padding: 16px; color: #FCA5A5; margin-top: 16px; }
-    .alert-warning { border-left: 3px solid #F59E0B; background: rgba(245, 158, 11, 0.1); padding: 16px; color: #FCD34D; margin-top: 16px; }
-    .alert-stable { border-left: 3px solid #10B981; background: rgba(16, 185, 129, 0.1); padding: 16px; color: #6EE7B7; margin-top: 16px; }
+    /* Metric styling */
+    div[data-testid="stMetric"] { background-color: #0A0A0A; border: 1px solid #262626; padding: 16px; border-radius: 2px; }
+    div[data-testid="stMetricValue"] { color: #FFFFFF !important; font-weight: 700 !important; }
+    
+    /* Custom Slider */
+    .stSlider > div > div > div { color: #FFFFFF !important; font-weight: 600; font-size: 1.1rem; }
     
     /* Hide Plotly Toolbar */
     .modebar { display: none !important; }
 </style>
 """, unsafe_allow_html=True)
 
-# ML & Math Logic
-C0 = "#22D3EE"         # Cyan (Legitimate)
-C1 = "#FB7185"         # Rose (Malicious/Fraudulent)
-C0_BG = "rgba(34, 211, 238, 0.08)"
-C1_BG = "rgba(251, 113, 133, 0.08)"
+# 2. AI & Math Engine
+C_SAFE = "#0EA5E9"       # Cerulean (Cleared)
+C_THREAT = "#E11D48"     # Crimson (Threat)
+C_SAFE_BG = "rgba(14, 165, 233, 0.08)"
+C_THREAT_BG = "rgba(225, 29, 72, 0.08)"
 
 class Net(nn.Module):
-    def __init__(self, h):
+    def __init__(self):
         super().__init__()
-        self.net = nn.Sequential(nn.Linear(2,h), nn.ReLU(), nn.Linear(h,h), nn.ReLU(), nn.Linear(h,2))
-    def forward(self, x): 
-        return self.net(x)
+        self.net = nn.Sequential(nn.Linear(2, 32), nn.ReLU(), nn.Linear(32, 32), nn.ReLU(), nn.Linear(32, 2))
+    def forward(self, x): return self.net(x)
 
 @st.cache_data(show_spinner=False)
-def get_data(name, n, nz):
-    if name == "Complex (Non-linear)": X, y = make_moons(n_samples=n, noise=nz, random_state=42)
-    elif name == "Enclosed (Perimeter)": X, y = make_circles(n_samples=n, noise=nz, factor=0.5, random_state=42)
-    else: X, y = make_classification(n_samples=n, n_features=2, n_redundant=0, n_informative=2, n_clusters_per_class=1, flip_y=nz, random_state=42)
+def get_data():
+    X, y = make_moons(n_samples=300, noise=0.12, random_state=42)
     X = StandardScaler().fit_transform(X)
     return train_test_split(X, y, test_size=0.3, random_state=42)
 
 @st.cache_resource(show_spinner=False)
-def train_model(_X, _y, hidden_nodes):
-    m = Net(hidden_nodes)
+def train_model(_X, _y):
+    m = Net()
     o = torch.optim.Adam(m.parameters(), lr=0.01)
     L = nn.CrossEntropyLoss()
     Xt, yt = torch.tensor(_X, dtype=torch.float32), torch.tensor(_y, dtype=torch.long)
-    for _ in range(250):
+    for _ in range(300):
         o.zero_grad(); l = L(m(Xt), yt); l.backward(); o.step()
     m.eval()
     return m
 
-def get_accuracy(m, X, y):
+def get_metrics(m, X, y):
     with torch.no_grad():
         preds = m(torch.tensor(X, dtype=torch.float32)).argmax(1).numpy()
-        return (preds == y).mean() * 100
+        acc = (preds == y).mean() * 100
+        threats_bypassed = ((preds == 0) & (y == 1)).sum()
+        return acc, threats_bypassed
 
-def generate_attack(m, X, y, attack_type, eps):
+def generate_attack(m, X, y, eps):
     if eps == 0.0: return X
     Xt = torch.tensor(X, dtype=torch.float32, requires_grad=True)
     yt = torch.tensor(y, dtype=torch.long)
-    
-    if "Baseline" in attack_type:
-        return X + np.random.uniform(-eps, eps, size=X.shape)
-    elif "Single-step" in attack_type:
-        nn.CrossEntropyLoss()(m(Xt), yt).backward()
-        return (Xt + eps * Xt.grad.sign()).detach().numpy()
-    elif "Multi-step" in attack_type:
-        Xa = Xt.clone().detach()
-        alpha = eps / 4
-        for _ in range(10):
-            Xa.requires_grad_(True)
-            nn.CrossEntropyLoss()(m(Xa), yt).backward()
-            with torch.no_grad():
-                Xa = Xt + torch.clamp(Xa + alpha * Xa.grad.sign() - Xt, -eps, eps)
-        return Xa.detach().numpy()
+    Xa = Xt.clone().detach()
+    alpha = eps / 4
+    for _ in range(10):
+        Xa.requires_grad_(True)
+        nn.CrossEntropyLoss()(m(Xa), yt).backward()
+        with torch.no_grad():
+            Xa = Xt + torch.clamp(Xa + alpha * Xa.grad.sign() - Xt, -eps, eps)
+    return Xa.detach().numpy()
 
-def render_plot(X, y, model, title, arrows_from=None):
+def render_plot(X, y, model, title, subtitle, arrows_from=None):
     fig = go.Figure()
-    xs = np.linspace(X[:,0].min()-0.5, X[:,0].max()+0.5, 150)
-    ys = np.linspace(X[:,1].min()-0.5, X[:,1].max()+0.5, 150)
+    
+    xs = np.linspace(X[:,0].min()-0.5, X[:,0].max()+0.5, 120)
+    ys = np.linspace(X[:,1].min()-0.5, X[:,1].max()+0.5, 120)
     xx, yy = np.meshgrid(xs, ys)
     with torch.no_grad():
         Z = model(torch.tensor(np.c_[xx.ravel(), yy.ravel()], dtype=torch.float32)).argmax(1).numpy().reshape(xx.shape)
     
     fig.add_trace(go.Contour(
-        x=xs, y=ys, z=Z, showscale=False, colorscale=[[0, C0_BG], [1, C1_BG]],
+        x=xs, y=ys, z=Z, showscale=False, colorscale=[[0, C_SAFE_BG], [1, C_THREAT_BG]],
         contours=dict(showlines=True, coloring="fill"),
-        line=dict(width=1, color="rgba(255,255,255,0.1)"), hoverinfo="skip"))
+        line=dict(width=1, color="rgba(255,255,255,0.15)"), hoverinfo="skip"))
     
-    colors = [C0 if yi == 0 else C1 for yi in y]
+    colors = [C_SAFE if yi == 0 else C_THREAT for yi in y]
     fig.add_trace(go.Scatter(
         x=X[:,0], y=X[:,1], mode="markers", hoverinfo="skip",
-        marker=dict(color=colors, size=7, line=dict(width=0.8, color="#09090B"))))
+        marker=dict(color=colors, size=8, line=dict(width=1, color="#050505"))))
     
     if arrows_from is not None:
         for i in range(len(X)):
             if np.linalg.norm(X[i] - arrows_from[i]) > 0.01:
                 fig.add_annotation(
                     x=X[i,0], y=X[i,1], ax=arrows_from[i,0], ay=arrows_from[i,1],
-                    showarrow=True, arrowhead=2, arrowsize=1, arrowwidth=1.5, arrowcolor="rgba(255, 255, 255, 0.6)")
+                    showarrow=True, arrowhead=2, arrowsize=1, arrowwidth=2, arrowcolor="rgba(255, 255, 255, 0.8)")
 
     fig.update_layout(
-        title=dict(text=title, font=dict(size=14, color="#F4F4F5"), x=0.5),
-        height=450, showlegend=False, margin=dict(t=40, b=10, l=10, r=10),
+        title=dict(text=f"<b>{title}</b><br><span style='font-size:12px;color:#A3A3A3'>{subtitle}</span>", x=0.05, y=0.95),
+        height=480, showlegend=False, margin=dict(t=0, b=0, l=0, r=0),
         paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)",
         xaxis=dict(showgrid=False, zeroline=False, showticklabels=False),
         yaxis=dict(showgrid=False, zeroline=False, showticklabels=False)
     )
     return fig
 
-# Application Layout
-st.markdown('<div class="prototype-banner">Prototype Application: For Policy Briefing Purposes Only</div>', unsafe_allow_html=True)
+# 3. Intelligence Briefing Layout
 
-st.title("Assessing AI System Vulnerabilities")
+st.title("Threat Assessment: AI Decision Boundaries")
+st.markdown("### Classified Briefing on Adversarial Machine Learning Capabilities")
 
 st.markdown("""
-<div class="exec-summary">
-    <strong>Executive Briefing: Adversarial Brittleness</strong><br>
-    Machine learning systems rely on mathematical boundaries to distinguish between legitimate activity (Cyan) and malicious activity (Rose). 
-    While highly accurate in controlled environments, these systems possess a critical blind spot: an adversary can apply microscopic, 
-    calculated modifications to input data, forcing the AI to make incorrect decisions with high confidence. 
+<div class="bluf-box">
+    <div class="bluf-text">BOTTOM LINE UP FRONT (BLUF)</div>
+    <p style="margin-top: 8px; margin-bottom: 0;">
+        Artificial Intelligence systems do not "understand" data. They draw rigid mathematical borders between safe and dangerous activity. 
+        Adversaries exploit this blind spot. By applying microscopic, calculated alterations to malicious data, an adversary can push their profile across the AI's border. 
+        <strong>The AI will then wave the threat through, registering it as completely safe with 100% confidence.</strong>
+    </p>
 </div>
 """, unsafe_allow_html=True)
 
-# Control Panel: Moved from sidebar to top columns
-ctrl1, ctrl2, ctrl3 = st.columns(3)
+# Process Data Live
+X_train, X_test, y_train, y_test = get_data()
+model = train_model(X_train, y_train)
 
-with ctrl1:
-    st.markdown("### 1. System Environment")
-    ds_name = st.selectbox("Underlying Data Pattern", ["Complex (Non-linear)", "Enclosed (Perimeter)", "Standard (Linear)"])
-    noise = st.slider("Data Ambiguity (Overlap)", 0.05, 0.40, 0.15, 0.05, help="How closely legitimate and malicious cases resemble each other in the real world.")
-
-with ctrl2:
-    st.markdown("### 2. Defense Capability")
-    hidden_nodes = st.slider("AI Internal Complexity", 4, 64, 16, 4, help="The volume of computational resources the AI uses to draw its decision boundary.")
-
-with ctrl3:
-    st.markdown("### 3. Threat Scenario")
-    attack_type = st.selectbox("Attack Methodology", [
-        "Advanced Multi-step (Industry Threat Standard)", 
-        "Basic Single-step (Fast Approximation)", 
-        "Random Hardware Noise (Baseline)"
-    ])
-    eps = st.slider("Attacker's Modification Budget", 0.0, 1.5, 0.3, 0.05, help="The limit on how much an attacker can alter the input data before a human notices.")
-
-st.markdown("<hr style='border-color: #27272A; margin-top: 10px; margin-bottom: 30px;'>", unsafe_allow_html=True)
-
-# Execution Pipeline
-X_train, X_test, y_train, y_test = get_data(ds_name, 400, noise)
-model = train_model(X_train, y_train, hidden_nodes)
-
-clean_acc = get_accuracy(model, X_test, y_test)
-X_adv = generate_attack(model, X_test, y_test, attack_type, eps)
-adv_acc = get_accuracy(model, X_adv, y_test)
-acc_drop = clean_acc - adv_acc
-
-# Telemetry
-col1, col2, col3 = st.columns(3)
-col1.metric("Baseline Reliability", f"{clean_acc:.1f}%")
-col2.metric("Reliability Under Attack", f"{adv_acc:.1f}%")
-col3.metric("System Degradation", f"{acc_drop:.1f} pts", delta=f"-{acc_drop:.1f}%", delta_color="inverse")
-
+# Slider acts as the main interactive element
+st.markdown("<h4 style='color: #FFFFFF; margin-bottom: 10px;'>ESCALATE THREAT LEVEL</h4>", unsafe_allow_html=True)
+eps = st.slider("Intensity of Adversarial Evasion Tactics", 0.0, 1.0, 0.0, 0.05, label_visibility="collapsed")
 st.markdown("<br>", unsafe_allow_html=True)
 
-# Visual Intelligence
+# Compute Results
+clean_acc, clean_bypassed = get_metrics(model, X_test, y_test)
+X_adv = generate_attack(model, X_test, y_test, eps)
+adv_acc, adv_bypassed = get_metrics(model, X_adv, y_test)
+
+# Telemetry Metrics
+m1, m2, m3 = st.columns(3)
+m1.metric("System Integrity (Normal)", f"{clean_acc:.1f}%")
+m2.metric("System Integrity (Under Attack)", f"{adv_acc:.1f}%", f"{adv_acc - clean_acc:.1f}%")
+m3.metric("Critical Threats Bypassed", f"{adv_bypassed}", f"+{adv_bypassed - clean_bypassed} breaches", delta_color="inverse")
+
+st.markdown("<hr style='border-color: #262626; margin: 32px 0;'>", unsafe_allow_html=True)
+
+# Visual Evidence Panels
 c1, c2 = st.columns(2)
 
 with c1:
-    st.plotly_chart(render_plot(X_test, y_test, model, "Baseline Operation (Secure Data)"), use_container_width=True, config={'displayModeBar': False})
+    st.plotly_chart(
+        render_plot(X_test, y_test, model, "SECURE ENVIRONMENT", "AI border correctly blocking crimson threats."), 
+        use_container_width=True, config={'displayModeBar': False}
+    )
 
 with c2:
-    st.plotly_chart(render_plot(X_adv, y_test, model, "Active Threat Scenario", arrows_from=X_test), use_container_width=True, config={'displayModeBar': False})
+    if eps == 0.0:
+        st.plotly_chart(
+            render_plot(X_adv, y_test, model, "ACTIVE THREAT SCENARIO", "Awaiting threat escalation from command panel."), 
+            use_container_width=True, config={'displayModeBar': False}
+        )
+    else:
+        st.plotly_chart(
+            render_plot(X_adv, y_test, model, "SYSTEM COMPROMISED", "White arrows trace threats crossing into the safe zone.", arrows_from=X_test), 
+            use_container_width=True, config={'displayModeBar': False}
+        )
 
-# Strategic Assessment Logic
-if acc_drop > 15:
-    st.markdown(f"""
-    <div class="alert-critical">
-        <strong>CRITICAL VULNERABILITY DETECTED:</strong> The attack successfully bypassed system logic, degrading reliability by {acc_drop:.1f} percentage points. 
-        Note the vector lines on the right panel: the adversary applied minimal alterations to the data points, yet successfully pushed them across the AI's fixed decision boundary. 
-        In a live environment, this results in unauthorized approvals and false flag alerts.
-    </div>
-    """, unsafe_allow_html=True)
-elif acc_drop > 5:
-    st.markdown(f"""
-    <div class="alert-warning">
-        <strong>MODERATE DEGRADATION:</strong> System reliability decreased by {acc_drop:.1f} percentage points. 
-        While the core architecture did not entirely collapse, an adversary has successfully manipulated a statistically significant subset of outcomes. 
-        Consider this threshold a failure for mission-critical deployments.
-    </div>
-    """, unsafe_allow_html=True)
-else:
-    st.markdown("""
-    <div class="alert-stable">
-        <strong>SYSTEM STABLE:</strong> At the current attack parameter, the model's decision boundaries remain structurally sound. 
-        To stress-test further, increase the "Attacker's Modification Budget" via the control panel to identify the system's breaking point.
-    </div>
-    """, unsafe_allow_html=True)
+# Executive Conclusion
+st.markdown("""
+<div style="background-color: #121212; padding: 24px; border: 1px solid #262626; margin-top: 24px;">
+    <h4 style="color: #FFFFFF; margin-top: 0;">STRATEGIC IMPLICATION</h4>
+    <p style="margin-bottom: 0;">
+        When the threat level escalates above zero, note the white trajectory lines on the right panel. The adversary has barely altered the profile of the threat. To a human auditor, these anomalies are invisible. However, the mathematical shift is enough to subvert the AI. Deploying machine learning in national security, financial markets, or infrastructure without adversarial stress-testing guarantees an exploitable vulnerability.
+    </p>
+</div>
+""", unsafe_allow_html=True)
