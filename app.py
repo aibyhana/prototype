@@ -1,5 +1,6 @@
 """
-Interactive briefing: Can you break this AI?
+Interactive walkthrough: adversarial brittleness in AI systems.
+Step-by-step guided experience for non-technical decision-makers.
 """
 
 import streamlit as st
@@ -7,358 +8,425 @@ import numpy as np
 import torch
 import torch.nn as nn
 import plotly.graph_objects as go
-from plotly.subplots import make_subplots
 from sklearn.datasets import make_moons, make_circles, make_classification
 from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import StandardScaler
 
-# ── config ──────────────────────────────────────────────────────────────────
+st.set_page_config(page_title="AI Brittleness · Walkthrough", layout="wide")
 
-st.set_page_config(page_title="Can you break this AI?", layout="wide")
+# ── state ───────────────────────────────────────────────────────────────────
+
+if "step" not in st.session_state:
+    st.session_state.step = 0
+if "model" not in st.session_state:
+    st.session_state.model = None
+if "data" not in st.session_state:
+    st.session_state.data = None
 
 # ── css ─────────────────────────────────────────────────────────────────────
 
 st.markdown("""
 <style>
-@import url('https://fonts.googleapis.com/css2?family=Instrument+Serif&family=DM+Sans:wght@400;500;600&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap');
 
-.stApp { background: #F7F6F2; }
+:root {
+    --bg: #FBFBF9;
+    --card: #FFFFFF;
+    --border: #EBEBEB;
+    --text: #1D1D1F;
+    --muted: #86868B;
+    --accent: #0071E3;
+    --accent-light: #EBF5FF;
+    --green: #248A3D;
+    --red: #D70015;
+    --green-bg: rgba(36,138,61,0.08);
+    --red-bg: rgba(215,0,21,0.08);
+}
+
+.stApp { background: var(--bg); }
 header[data-testid="stHeader"] { background: transparent; }
-
-h1, h2, h3 { font-family: 'Instrument Serif', Georgia, serif !important; color: #1a1a1a; font-weight: 400 !important; }
-p, li, label, .stMarkdown, .stText, span, div { font-family: 'DM Sans', sans-serif !important; }
-
-section[data-testid="stSidebar"] { background: #1C1C1C; }
-section[data-testid="stSidebar"] * { color: #D4D0C8 !important; }
-section[data-testid="stSidebar"] .stSlider label {
-    font-size: 0.8rem; text-transform: uppercase;
-    letter-spacing: 0.06em; color: #908E88 !important;
-}
-
-div[data-testid="stMetric"] {
-    background: white; border: 1px solid #E8E5DE;
-    border-radius: 8px; padding: 20px 24px;
-}
-div[data-testid="stMetric"] label {
-    font-size: 0.72rem; text-transform: uppercase;
-    letter-spacing: 0.06em; color: #999 !important;
-}
-div[data-testid="stMetric"] div[data-testid="stMetricValue"] {
-    font-family: 'Instrument Serif', serif !important;
-    font-size: 2.4rem; color: #1a1a1a !important;
-}
-
-.stButton > button[kind="primary"] {
-    background: #B83A14; border: none; color: white;
-    font-family: 'DM Sans'; font-weight: 600; font-size: 0.95rem;
-    border-radius: 6px; padding: 0.6rem 1.5rem;
-}
-.stButton > button[kind="primary"]:hover { background: #D14A1E; }
-
 #MainMenu, footer { visibility: hidden; }
 
-.hero {
-    padding: 48px 0 32px 0;
-    max-width: 640px;
-}
-.hero h1 {
-    font-size: 2.8rem !important;
-    line-height: 1.15;
-    margin-bottom: 16px;
-}
-.hero p {
-    font-size: 1.05rem;
-    color: #666;
-    line-height: 1.6;
+* { font-family: 'Inter', -apple-system, sans-serif !important; }
+h1, h2, h3 { color: var(--text); font-weight: 600 !important; }
+p, li, span { color: var(--text); }
+
+/* sidebar hidden — we use inline controls */
+section[data-testid="stSidebar"] { display: none; }
+
+/* cards */
+.card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 32px;
+    margin: 16px 0;
 }
 
-.step-row {
-    display: flex; gap: 24px; margin: 32px 0;
+/* step indicator */
+.steps {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+    margin: 0 0 32px 0;
 }
-.step-card {
-    flex: 1;
-    background: white;
-    border: 1px solid #E8E5DE;
-    border-radius: 10px;
-    padding: 28px 24px;
+.dot {
+    width: 32px; height: 32px;
+    border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 0.78rem; font-weight: 600;
 }
-.step-num {
-    font-family: 'Instrument Serif', serif;
-    font-size: 2rem;
-    color: #B83A14;
-    line-height: 1;
-    margin-bottom: 8px;
-}
-.step-card h4 {
-    font-family: 'DM Sans', sans-serif !important;
-    font-size: 0.95rem;
-    font-weight: 600;
-    margin: 0 0 6px 0;
-    color: #1a1a1a;
-}
-.step-card p {
-    font-size: 0.85rem;
-    color: #777;
-    margin: 0;
-    line-height: 1.5;
+.dot-active { background: var(--accent); color: white; }
+.dot-done { background: var(--accent-light); color: var(--accent); }
+.dot-future { background: var(--border); color: var(--muted); }
+.step-line { width: 32px; height: 1px; background: var(--border); }
+.step-label {
+    font-size: 0.72rem; font-weight: 500;
+    text-transform: uppercase; letter-spacing: 0.05em;
+    color: var(--muted); margin-left: 10px;
 }
 
-.insight-bar {
-    background: #1C1C1C;
-    border-radius: 10px;
-    padding: 24px 32px;
-    margin: 24px 0;
-    color: #E8E5DE;
-    font-size: 0.92rem;
-    line-height: 1.6;
+/* metrics */
+div[data-testid="stMetric"] {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 20px 24px;
 }
-.insight-bar strong { color: #F0A07C; }
-
-.plot-label {
-    font-family: 'DM Sans', sans-serif;
-    font-size: 0.78rem;
-    text-transform: uppercase;
-    letter-spacing: 0.07em;
-    color: #999;
-    margin-bottom: 4px;
+div[data-testid="stMetric"] label {
+    font-size: 0.72rem; font-weight: 500;
+    text-transform: uppercase; letter-spacing: 0.04em;
+    color: var(--muted) !important;
+}
+div[data-testid="stMetric"] div[data-testid="stMetricValue"] {
+    font-size: 2rem; font-weight: 600; color: var(--text) !important;
 }
 
-.divider { border: none; border-top: 1px solid #E5E2DB; margin: 40px 0 32px 0; }
-
-.tag {
-    display: inline-block;
-    background: #B83A14;
-    color: white;
-    font-family: 'DM Sans', sans-serif;
-    font-weight: 600;
-    font-size: 0.65rem;
-    letter-spacing: 0.1em;
-    text-transform: uppercase;
-    padding: 3px 10px;
-    border-radius: 3px;
+/* buttons */
+.stButton > button {
+    border-radius: 8px;
+    font-weight: 500;
+    padding: 0.5rem 1.5rem;
+    font-size: 0.9rem;
+}
+.stButton > button[kind="primary"] {
+    background: var(--accent); border: none; color: white;
+}
+.stButton > button[kind="primary"]:hover {
+    background: #0077ED;
+}
+.stButton > button[kind="secondary"] {
+    background: transparent; border: 1px solid var(--border); color: var(--text);
 }
 
-.legend-row {
-    display: flex; gap: 20px; align-items: center;
-    font-size: 0.82rem; color: #888; margin: 8px 0 4px 0;
+/* plotly toolbar hide */
+.modebar { display: none !important; }
+
+/* legend */
+.legend {
+    display: flex; gap: 16px; align-items: center;
+    font-size: 0.8rem; color: var(--muted);
+    margin: 8px 0 0 0;
 }
-.legend-dot {
-    display: inline-block; width: 10px; height: 10px;
-    border-radius: 50%; margin-right: 6px;
-}
+.ldot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; margin-right: 5px; }
 </style>
 """, unsafe_allow_html=True)
 
-# ── ml code ─────────────────────────────────────────────────────────────────
+# ── ml helpers ──────────────────────────────────────────────────────────────
 
 class Net(nn.Module):
     def __init__(self, h):
         super().__init__()
-        self.net = nn.Sequential(nn.Linear(2,h), nn.ReLU(), nn.Linear(h,h), nn.ReLU(), nn.Linear(h,2))
+        self.net = nn.Sequential(nn.Linear(2,h),nn.ReLU(),nn.Linear(h,h),nn.ReLU(),nn.Linear(h,2))
     def forward(self, x): return self.net(x)
 
-def gen(name, n, nz):
-    if name == "Moons": X, y = make_moons(n_samples=n, noise=nz, random_state=42)
-    elif name == "Circles": X, y = make_circles(n_samples=n, noise=nz, factor=0.5, random_state=42)
-    else: X, y = make_classification(n_samples=n, n_features=2, n_redundant=0, n_informative=2, n_clusters_per_class=1, flip_y=nz, random_state=42)
-    sc = StandardScaler(); X = sc.fit_transform(X); return X, y, sc
+def make_dataset(name, n, nz):
+    if name=="Moons": X,y=make_moons(n_samples=n,noise=nz,random_state=42)
+    elif name=="Circles": X,y=make_circles(n_samples=n,noise=nz,factor=0.5,random_state=42)
+    else: X,y=make_classification(n_samples=n,n_features=2,n_redundant=0,n_informative=2,n_clusters_per_class=1,flip_y=nz,random_state=42)
+    sc=StandardScaler(); X=sc.fit_transform(X); return X,y
 
-def trn(m, X, y, ep):
+def train_model(m, X, y, ep):
     o=torch.optim.Adam(m.parameters(),lr=0.01); L=nn.CrossEntropyLoss()
     Xt,yt=torch.tensor(X,dtype=torch.float32),torch.tensor(y,dtype=torch.long)
     for _ in range(ep): o.zero_grad(); l=L(m(Xt),yt); l.backward(); o.step()
 
-def fgsm(m,X,y,e):
+def do_fgsm(m,X,y,e):
     Xt=torch.tensor(X,dtype=torch.float32,requires_grad=True); yt=torch.tensor(y,dtype=torch.long)
     nn.CrossEntropyLoss()(m(Xt),yt).backward(); return(Xt+e*Xt.grad.sign()).detach().numpy()
 
-def pgd(m,X,y,e,s):
+def do_pgd(m,X,y,e,s=10):
     Xt=torch.tensor(X,dtype=torch.float32); yt=torch.tensor(y,dtype=torch.long); Xa=Xt.clone(); a=e/4
     for _ in range(s):
         Xa.requires_grad_(True); nn.CrossEntropyLoss()(m(Xa),yt).backward()
         with torch.no_grad(): Xa=Xt+torch.clamp(Xa+a*Xa.grad.sign()-Xt,-e,e)
     return Xa.detach().numpy()
 
-def noise(X,e): return X+np.random.uniform(-e,e,size=X.shape)
+def do_noise(X,e): return X+np.random.uniform(-e,e,size=X.shape)
 
-def grd(m,X,r=160):
+def make_grid(m,X,r=160):
     xs=np.linspace(X[:,0].min()-1,X[:,0].max()+1,r); ys=np.linspace(X[:,1].min()-1,X[:,1].max()+1,r)
     xx,yy=np.meshgrid(xs,ys)
     with torch.no_grad(): Z=m(torch.tensor(np.c_[xx.ravel(),yy.ravel()],dtype=torch.float32)).argmax(1).numpy().reshape(xx.shape)
     return xx,yy,Z
 
-def sc(m,X,y):
+def accuracy(m,X,y):
     with torch.no_grad(): return(m(torch.tensor(X,dtype=torch.float32)).argmax(1).numpy()==y).mean()*100
 
-G="#2D6A4F"; R="#9B2226"; GB="rgba(45,106,79,0.10)"; RB="rgba(155,34,38,0.10)"
+GRN="#248A3D"; RED="#D70015"
+GRN_BG="rgba(36,138,61,0.07)"; RED_BG="rgba(215,0,21,0.07)"
 
-# ── sidebar (minimal) ──────────────────────────────────────────────────────
+# ── plot helper ─────────────────────────────────────────────────────────────
 
-with st.sidebar:
-    st.markdown("### Settings")
-    ds = st.selectbox("Data shape", ["Moons", "Circles", "Blobs"])
-    ns = st.slider("Samples", 200, 800, 400, 100)
-    nz = st.slider("Noise", 0.05, 0.40, 0.20, 0.05)
-    st.markdown("---")
-    hid = st.slider("Model neurons", 4, 64, 16, 4)
-    ep = st.slider("Training rounds", 50, 500, 200, 50)
-    st.markdown("---")
-    atk = st.selectbox("Attack", ["FGSM", "PGD", "Random noise"])
-    eps = st.slider("Attack strength (ε)", 0.0, 2.0, 0.30, 0.05)
-    st.markdown("---")
-    run = st.button("Run", type="primary", use_container_width=True)
+def scatter_plot(X, y, model=None, title="", height=420, show_boundary=True):
+    fig = go.Figure()
+    if show_boundary and model is not None:
+        xx,yy,Z = make_grid(model, X)
+        fig.add_trace(go.Contour(
+            x=np.linspace(xx.min(),xx.max(),Z.shape[1]),
+            y=np.linspace(yy.min(),yy.max(),Z.shape[0]),
+            z=Z, showscale=False,
+            colorscale=[[0,GRN_BG],[1,RED_BG]],
+            contours=dict(showlines=True,coloring="fill"),
+            line=dict(width=1.2,color="rgba(0,0,0,0.10)"),
+            hoverinfo="skip"))
+    colors = [GRN if yi==0 else RED for yi in y]
+    fig.add_trace(go.Scatter(
+        x=X[:,0], y=X[:,1], mode="markers",
+        marker=dict(color=colors, size=6, line=dict(width=0.6, color="white"), opacity=0.85),
+        hovertemplate="(%{x:.2f}, %{y:.2f})<extra></extra>"))
+    fig.update_layout(
+        height=height, showlegend=False, title=None,
+        margin=dict(t=8,b=8,l=8,r=8),
+        paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)",
+        font=dict(family="Inter", size=12))
+    fig.update_xaxes(showgrid=False, zeroline=False, showticklabels=False)
+    fig.update_yaxes(showgrid=False, zeroline=False, showticklabels=False)
+    return fig
 
-# ── landing ─────────────────────────────────────────────────────────────────
+# ── step indicator ──────────────────────────────────────────────────────────
 
-if not run:
-    st.markdown("""
-    <div class="hero">
-        <span class="tag">Interactive Briefing</span>
-        <h1>Can you break this AI?</h1>
-        <p>
-            You'll train a small AI system, then try to fool it with an
-            invisible attack. It takes 30 seconds. No coding required.
-        </p>
-    </div>
-    """, unsafe_allow_html=True)
+def render_steps(current):
+    labels = ["Data", "Train", "Attack", "Result"]
+    dots = ""
+    for i, label in enumerate(labels):
+        if i < current: cls = "dot-done"
+        elif i == current: cls = "dot-active"
+        else: cls = "dot-future"
+        dots += f'<div class="dot {cls}">{i+1}</div>'
+        if i < len(labels) - 1:
+            dots += '<div class="step-line"></div>'
+    dots += f'<span class="step-label">{labels[current]}</span>'
+    st.markdown(f'<div class="steps">{dots}</div>', unsafe_allow_html=True)
 
-    st.markdown("""
-    <div class="step-row">
-        <div class="step-card">
-            <div class="step-num">1</div>
-            <h4>Data appears</h4>
-            <p>Two groups of dots — like "approve" vs "reject" in a loan system.</p>
-        </div>
-        <div class="step-card">
-            <div class="step-num">2</div>
-            <h4>AI learns a rule</h4>
-            <p>It draws a line separating the groups. You'll see how accurate it is.</p>
-        </div>
-        <div class="step-card">
-            <div class="step-num">3</div>
-            <h4>You attack it</h4>
-            <p>A tiny, invisible nudge to the data. Watch the accuracy collapse.</p>
-        </div>
-    </div>
-    """, unsafe_allow_html=True)
+# ── step 0: intro ──────────────────────────────────────────────────────────
 
-    st.markdown("""
-    <div class="insight-bar">
-        This demonstrates <strong>adversarial brittleness</strong> — a vulnerability
-        present in every major AI architecture deployed today. Most systems in use
-        have never been tested for it.
-    </div>
-    """, unsafe_allow_html=True)
+if st.session_state.step == 0:
+    render_steps(0)
 
-    st.stop()
+    st.markdown("## Every AI system has a breaking point.")
+    st.markdown(
+        "This walkthrough lets you find it. You'll build a small AI, "
+        "then attack it — and see exactly how it fails."
+    )
 
-# ── experiment ──────────────────────────────────────────────────────────────
+    st.markdown("")
 
-X,y,_=gen(ds,ns,nz)
-Xtr,Xte,ytr,yte=train_test_split(X,y,test_size=0.25,random_state=42)
+    st.markdown("First, pick a dataset. These are simple 2D patterns the AI will learn to classify.")
 
-model=Net(hid)
-with st.spinner("Training…"): trn(model,Xtr,ytr,ep)
-model.eval()
-cs=sc(model,Xte,yte)
+    st.markdown('<div class="card">', unsafe_allow_html=True)
+    c1, c2, c3 = st.columns(3)
 
-with st.spinner("Attacking…"):
-    if atk=="FGSM": Xa=fgsm(model,Xte,yte,eps)
-    elif atk=="PGD": Xa=pgd(model,Xte,yte,eps,10)
-    else: Xa=noise(Xte,eps)
+    with c1:
+        ds_choice = "Moons"
+        fig_m = scatter_plot(*make_dataset("Moons", 300, 0.2), height=220, show_boundary=False)
+        st.plotly_chart(fig_m, use_container_width=True, key="preview_moons")
+        st.caption("**Moons** — two interlocking crescents")
 
-av=sc(model,Xa,yte); dr=cs-av
+    with c2:
+        fig_c = scatter_plot(*make_dataset("Circles", 300, 0.2), height=220, show_boundary=False)
+        st.plotly_chart(fig_c, use_container_width=True, key="preview_circles")
+        st.caption("**Circles** — one group inside another")
 
-# ── metrics ─────────────────────────────────────────────────────────────────
+    with c3:
+        fig_b = scatter_plot(*make_dataset("Blobs", 300, 0.2), height=220, show_boundary=False)
+        st.plotly_chart(fig_b, use_container_width=True, key="preview_blobs")
+        st.caption("**Blobs** — two separated clusters")
 
-st.markdown("")
-c1,c2,c3=st.columns(3)
-c1.metric("Before attack", f"{cs:.0f}%")
-c2.metric("After attack", f"{av:.0f}%")
-c3.metric("Accuracy lost", f"{dr:.0f} pts", delta=f"−{dr:.0f}", delta_color="inverse")
+    st.markdown('</div>', unsafe_allow_html=True)
 
-# ── plots ───────────────────────────────────────────────────────────────────
+    ds = st.selectbox("Choose one", ["Moons", "Circles", "Blobs"], label_visibility="collapsed")
+    nz = st.slider("How noisy should the data be?", 0.05, 0.40, 0.18, 0.05,
+                    help="More noise = messier separation between groups. Real-world data is always noisy.")
 
-st.markdown("""
-<div class="legend-row">
-    <span><span class="legend-dot" style="background:#2D6A4F;"></span>Group A</span>
-    <span><span class="legend-dot" style="background:#9B2226;"></span>Group B</span>
-    <span style="margin-left:8px;">Shaded region = AI's decision zone · Thin line = decision boundary · Arrows = how points moved</span>
-</div>
-""", unsafe_allow_html=True)
+    st.markdown("")
+    if st.button("Next →", type="primary"):
+        X, y = make_dataset(ds, 400, nz)
+        Xtr, Xte, ytr, yte = train_test_split(X, y, test_size=0.25, random_state=42)
+        st.session_state.data = {"X":X, "y":y, "Xtr":Xtr, "Xte":Xte, "ytr":ytr, "yte":yte, "ds":ds, "nz":nz}
+        st.session_state.step = 1
+        st.rerun()
 
-xx,yy,Z=grd(model,X)
-cp=[G if yi==0 else R for yi in yte]
+# ── step 1: train ───────────────────────────────────────────────────────────
 
-fig=make_subplots(rows=1,cols=2,
-    subplot_titles=("Clean data",f"After {atk} attack · ε={eps}"),
-    horizontal_spacing=0.06)
+elif st.session_state.step == 1:
+    render_steps(1)
+    d = st.session_state.data
 
-for c in [1,2]:
-    fig.add_trace(go.Contour(
-        x=np.linspace(xx.min(),xx.max(),Z.shape[1]),
-        y=np.linspace(yy.min(),yy.max(),Z.shape[0]),
-        z=Z,showscale=False,
-        colorscale=[[0,GB],[1,RB]],
-        contours=dict(showlines=True,coloring="fill"),
-        line=dict(width=1.5,color="rgba(0,0,0,0.15)"),
-        hoverinfo="skip"),row=1,col=c)
+    st.markdown("## Now the AI learns to separate the two groups.")
+    st.markdown(
+        "It will draw a **decision boundary** — a line dividing "
+        "the plane into two zones. Everything on one side gets "
+        "classified as green, the other side as red."
+    )
 
-fig.add_trace(go.Scatter(x=Xte[:,0],y=Xte[:,1],mode="markers",
-    marker=dict(color=cp,size=6,line=dict(width=0.5,color="white")),
-    hovertemplate="(%{x:.2f}, %{y:.2f})<extra></extra>"),row=1,col=1)
+    hid = st.slider("How complex should the AI be?", 4, 64, 16, 4,
+                     help="More neurons = more complex boundary. Too many can overfit. Too few can underfit.")
+    ep = st.slider("How many training rounds?", 50, 500, 200, 50,
+                    help="More rounds = the AI has more time to learn the pattern.")
 
-fig.add_trace(go.Scatter(x=Xa[:,0],y=Xa[:,1],mode="markers",
-    marker=dict(color=cp,size=6,line=dict(width=0.5,color="white")),
-    hovertemplate="(%{x:.2f}, %{y:.2f})<extra></extra>"),row=1,col=2)
+    if st.button("Train the AI →", type="primary"):
+        model = Net(hid)
+        with st.spinner("Learning…"):
+            train_model(model, d["Xtr"], d["ytr"], ep)
+        model.eval()
+        cs = accuracy(model, d["Xte"], d["yte"])
+        st.session_state.model = model
+        st.session_state.data["clean_acc"] = cs
+        st.session_state.data["hid"] = hid
+        st.session_state.step = 2
+        st.rerun()
 
-rng=np.random.RandomState(0)
-idx=rng.choice(len(Xte),size=min(30,len(Xte)),replace=False)
-for i in idx:
-    fig.add_annotation(x=Xa[i,0],y=Xa[i,1],ax=Xte[i,0],ay=Xte[i,1],
-        xref="x2",yref="y2",axref="x2",ayref="y2",
-        showarrow=True,arrowhead=3,arrowsize=0.7,arrowwidth=0.6,
-        arrowcolor="rgba(0,0,0,0.18)")
+    # show data while they configure
+    st.markdown("")
+    st.markdown(f'<div class="legend"><span><span class="ldot" style="background:{GRN};"></span>Group A</span><span><span class="ldot" style="background:{RED};"></span>Group B</span></div>', unsafe_allow_html=True)
+    fig = scatter_plot(d["X"], d["y"], height=400, show_boundary=False)
+    st.plotly_chart(fig, use_container_width=True, key="step1_data")
 
-fig.update_layout(height=520,showlegend=False,
-    margin=dict(t=32,b=12,l=12,r=12),
-    paper_bgcolor="rgba(0,0,0,0)",plot_bgcolor="rgba(0,0,0,0)",
-    font=dict(family="DM Sans",size=12))
-fig.update_xaxes(showgrid=False,zeroline=False,showticklabels=False)
-fig.update_yaxes(showgrid=False,zeroline=False,showticklabels=False)
-fig.update_annotations(font=dict(size=13,family="DM Sans"))
+# ── step 2: attack ──────────────────────────────────────────────────────────
 
-st.plotly_chart(fig,use_container_width=True)
+elif st.session_state.step == 2:
+    render_steps(2)
+    d = st.session_state.data
+    model = st.session_state.model
 
-# ── insight ─────────────────────────────────────────────────────────────────
+    st.markdown("## The AI is trained. Now try to break it.")
+    st.markdown(
+        f"It's scoring **{d['clean_acc']:.0f}%** on data it hasn't seen before. "
+        f"That's the baseline. Now pick an attack method and see what happens."
+    )
 
-if dr > 15:
-    msg = f"The AI went from <strong>{cs:.0f}%</strong> to <strong>{av:.0f}%</strong> accuracy. The input barely changed. The model didn't change. But the predictions collapsed. In a medical or financial system, this is a safety failure."
-elif dr > 5:
-    msg = f"A <strong>{dr:.0f}-point</strong> drop. The attack didn't need insider access — just the ability to slightly modify inputs. Any system making real decisions at this error rate is vulnerable."
-elif dr > 0.5:
-    msg = f"Only <strong>{dr:.1f} points</strong> lost overall — but individual predictions flipped. An attacker only needs to fool the system on <em>their</em> input, not all of them."
-else:
-    msg = "The model held at this strength. Try increasing ε or switching from random noise to FGSM/PGD."
+    c1, c2 = st.columns(2)
+    with c1:
+        atk = st.selectbox("Attack method", ["FGSM", "PGD", "Random noise"],
+                           help="FGSM: fast single-step attack. PGD: stronger multi-step. Random noise: not targeted — a control.")
+    with c2:
+        eps = st.slider("Attack strength (ε)", 0.0, 2.0, 0.30, 0.05,
+                        help="How far each point can be moved. Even small values can break the AI.")
 
-st.markdown(f'<div class="insight-bar">{msg}</div>', unsafe_allow_html=True)
+    if st.button("Launch attack →", type="primary"):
+        with st.spinner("Attacking…"):
+            if atk == "FGSM": Xa = do_fgsm(model, d["Xte"], d["yte"], eps)
+            elif atk == "PGD": Xa = do_pgd(model, d["Xte"], d["yte"], eps)
+            else: Xa = do_noise(d["Xte"], eps)
+        av = accuracy(model, Xa, d["yte"])
+        st.session_state.data["Xa"] = Xa
+        st.session_state.data["adv_acc"] = av
+        st.session_state.data["atk"] = atk
+        st.session_state.data["eps"] = eps
+        st.session_state.step = 3
+        st.rerun()
 
-# ── what to try ─────────────────────────────────────────────────────────────
+    # show trained model
+    st.markdown("")
+    st.markdown(f'<div class="legend"><span><span class="ldot" style="background:{GRN};"></span>Group A</span><span><span class="ldot" style="background:{RED};"></span>Group B</span><span style="margin-left:4px;">Shaded = AI decision zones · Line = boundary</span></div>', unsafe_allow_html=True)
+    fig = scatter_plot(d["Xte"], d["yte"], model=model, height=440)
+    st.plotly_chart(fig, use_container_width=True, key="step2_model")
 
-st.markdown('<hr class="divider">', unsafe_allow_html=True)
+# ── step 3: result ──────────────────────────────────────────────────────────
 
-t1,t2,t3=st.columns(3)
-with t1:
-    st.markdown("**↑ Increase ε**")
-    st.caption("Watch accuracy collapse. At what point is the failure unacceptable?")
-with t2:
-    st.markdown("**Switch to PGD**")
-    st.caption("Compare a calculated attack vs random noise. The difference is striking.")
-with t3:
-    st.markdown("**Fewer neurons**")
-    st.caption("Simpler models resist some attacks better — but also make more mistakes.")
+elif st.session_state.step == 3:
+    render_steps(3)
+    d = st.session_state.data
+    model = st.session_state.model
+    dr = d["clean_acc"] - d["adv_acc"]
+
+    st.markdown("## Here's what happened.")
+
+    m1, m2, m3 = st.columns(3)
+    m1.metric("Before", f"{d['clean_acc']:.0f}%")
+    m2.metric("After", f"{d['adv_acc']:.0f}%")
+    m3.metric("Lost", f"{dr:.0f} pts", delta=f"−{dr:.0f}", delta_color="inverse")
+
+    # side by side plots
+    st.markdown("")
+    p1, p2 = st.columns(2)
+
+    with p1:
+        st.markdown(f'<div style="font-size:0.78rem; font-weight:500; color:#86868B; text-transform:uppercase; letter-spacing:0.06em;">Before attack</div>', unsafe_allow_html=True)
+        st.markdown(f'<div class="legend"><span><span class="ldot" style="background:{GRN};"></span>Group A</span><span><span class="ldot" style="background:{RED};"></span>Group B</span></div>', unsafe_allow_html=True)
+        fig1 = scatter_plot(d["Xte"], d["yte"], model=model, height=400)
+        st.plotly_chart(fig1, use_container_width=True, key="result_clean")
+
+    with p2:
+        st.markdown(f'<div style="font-size:0.78rem; font-weight:500; color:#86868B; text-transform:uppercase; letter-spacing:0.06em;">After {d["atk"]} attack · ε = {d["eps"]}</div>', unsafe_allow_html=True)
+        st.markdown(f'<div class="legend"><span><span class="ldot" style="background:{GRN};"></span>Group A</span><span><span class="ldot" style="background:{RED};"></span>Group B</span><span style="margin-left:4px;">Arrows = how points moved</span></div>', unsafe_allow_html=True)
+
+        # plot with arrows
+        fig2 = scatter_plot(d["Xa"], d["yte"], model=model, height=400)
+        rng = np.random.RandomState(0)
+        idx = rng.choice(len(d["Xte"]), size=min(30, len(d["Xte"])), replace=False)
+        for i in idx:
+            fig2.add_annotation(
+                x=d["Xa"][i,0], y=d["Xa"][i,1],
+                ax=d["Xte"][i,0], ay=d["Xte"][i,1],
+                showarrow=True, arrowhead=3, arrowsize=0.7, arrowwidth=0.6,
+                arrowcolor="rgba(0,0,0,0.15)")
+        st.plotly_chart(fig2, use_container_width=True, key="result_adv")
+
+    # insight
+    if dr > 15:
+        msg = (f"A **{dr:.0f}-point drop**. The input barely changed — a human couldn't tell the "
+               f"difference. But the AI's predictions collapsed. In a medical or financial system, "
+               f"this would be a safety-critical failure.")
+    elif dr > 5:
+        msg = (f"**{dr:.0f} points** of accuracy gone. The attack needed no insider access to the "
+               f"AI — just the ability to slightly modify inputs before they reach the system.")
+    elif dr > 0.5:
+        msg = (f"The overall drop was small (**{dr:.1f} pts**), but look at the arrows — individual "
+               f"points crossed the boundary. An attacker only needs to flip *their* input.")
+    else:
+        msg = "The model held at this attack strength. Try going back and increasing ε, or switching to PGD."
+
+    st.markdown("")
+    st.info(msg)
+
+    st.markdown("")
+    st.markdown("### What this means")
+    st.markdown(
+        "The AI's confidence on normal data masks a hidden fragility. "
+        "The decision boundary — the rule it learned — runs dangerously "
+        "close to the data. A calculated nudge is enough to cross it. "
+        "Most deployed AI systems have **never been tested** this way. "
+        "No major jurisdiction currently requires it."
+    )
+
+    # actions
+    st.markdown("")
+    c1, c2 = st.columns(2)
+    with c1:
+        if st.button("← Try different attack settings", use_container_width=True):
+            st.session_state.step = 2
+            st.rerun()
+    with c2:
+        if st.button("← Start over with new data", use_container_width=True):
+            st.session_state.step = 0
+            st.session_state.model = None
+            st.session_state.data = None
+            st.rerun()
 
 # ── footer ──────────────────────────────────────────────────────────────────
 
-st.markdown('<hr class="divider">', unsafe_allow_html=True)
+st.markdown("")
+st.markdown("")
 st.caption("Prototype · Not for redistribution")
