@@ -165,8 +165,8 @@ def render_plot(X, y, model, title, subtitle, arrows_from=None):
 
 # 3. Layout and Briefing Narrative
 
-st.title("Threat Assessment: AI Decision Boundaries (Simple Prototype)")
-st.markdown("### Policy Briefing on Machine Learning Vulnerabilities")
+st.title("AI Decision Boundaries")
+st.markdown("### Briefing on AI Vulnerabilities")
 
 st.markdown("""
 <div class="glass-box bluf-box">
